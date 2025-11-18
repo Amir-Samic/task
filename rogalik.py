@@ -100,7 +100,6 @@ class Roguelike:
     def render(self):
         self.clear_screen()
         
-        print("=== КОНСОЛЬНЫЙ РОГАЛИК С ФОНАРИКОМ ===")
         print("Управление: WASD - движение, Q - выход")
         print("Символы: @ - вы, # - стены")
         
