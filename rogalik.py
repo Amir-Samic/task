@@ -4,7 +4,7 @@ import math
 import msvcrt
 
 class RoguelikeWithWalls:
-    def __init__(self, width=40, height=20):  # ИСПРАВЛЕНО: должно быть __init__
+    def __init__(self, width=40, height=20):
         self.width = width
         self.height = height
         self.player_x = 5
@@ -23,7 +23,6 @@ class RoguelikeWithWalls:
         """Генерация более сложной карты с комнатами"""
         self.map = [['#' for _ in range(self.width)] for _ in range(self.height)]
         
-        # Создаем несколько комнат
         rooms = []
         for _ in range(8):
             room_width = random.randint(4, 8)
@@ -31,7 +30,6 @@ class RoguelikeWithWalls:
             room_x = random.randint(1, self.width - room_width - 1)
             room_y = random.randint(1, self.height - room_height - 1)
             
-            # Рисуем комнату
             for y in range(room_y, room_y + room_height):
                 for x in range(room_x, room_x + room_width):
                     if 0 <= x < self.width and 0 <= y < self.height:
@@ -39,22 +37,18 @@ class RoguelikeWithWalls:
             
             rooms.append((room_x + room_width//2, room_y + room_height//2))
         
-        # Соединяем комнаты коридорами
         for i in range(len(rooms) - 1):
             x1, y1 = rooms[i]
             x2, y2 = rooms[i + 1]
             
-            # Горизонтальный коридор
             for x in range(min(x1, x2), max(x1, x2) + 1):
                 if 0 <= x < self.width and 0 <= y1 < self.height:
                     self.map[y1][x] = self.floor
             
-            # Вертикальный коридор
             for y in range(min(y1, y2), max(y1, y2) + 1):
                 if 0 <= x2 < self.width and 0 <= y < self.height:
                     self.map[y][x2] = self.floor
         
-        # Устанавливаем игрока в первую комнату
         self.player_x, self.player_y = rooms[0]
     
     def has_line_of_sight(self, x1, y1, x2, y2):
@@ -66,13 +60,11 @@ class RoguelikeWithWalls:
         if distance == 0:
             return True
         
-        # Используем алгоритм Брезенхэма для проверки всех точек на пути
         for i in range(distance + 1):
             t = i / distance
             x = int(x1 + dx * t)
             y = int(y1 + dy * t)
             
-            # Если на пути встретилась стена - нет видимости
             if (0 <= x < self.width and 0 <= y < self.height and 
                 self.map[y][x] == self.wall):
                 return False
@@ -83,16 +75,14 @@ class RoguelikeWithWalls:
         """Возвращает множество видимых клеток с учетом стен"""
         visible = set()
         
-        # Проверяем все клетки в квадрате вокруг игрока
         for y in range(max(0, self.player_y - self.torch_radius), 
                       min(self.height, self.player_y + self.torch_radius + 1)):
             for x in range(max(0, self.player_x - self.torch_radius), 
                           min(self.width, self.player_x + self.torch_radius + 1)):
-                
-                # Проверяем расстояние
+
                 distance = math.sqrt((x - self.player_x)**2 + (y - self.player_y)**2)
                 if distance <= self.torch_radius:
-                    # Проверяем видимость
+
                     if self.has_line_of_sight(self.player_x, self.player_y, x, y):
                         visible.add((x, y))
         
@@ -105,7 +95,7 @@ class RoguelikeWithWalls:
         print(f"Torch radius: {self.torch_radius}")
         print("=" * 40)
         
-        visible_cells = self.get_visible_cells()  # ИСПРАВЛЕНО: добавлена эта строка
+        visible_cells = self.get_visible_cells() 
         
         for y in range(self.height):
             line = ""
@@ -116,13 +106,12 @@ class RoguelikeWithWalls:
                     self.explored.add((x, y))
                     line += self.map[y][x]
                 elif (x, y) in self.explored:
-                    # Показываем исследованные области
                     if self.map[y][x] == self.wall:
-                        line += '+'  # ИСПРАВЛЕНО: простой символ
+                        line += '+'
                     else:
-                        line += '-'  # ИСПРАВЛЕНО: простой символ
+                        line += '-'
                 else:
-                    line += self.dark  # Неисследованная область
+                    line += self.dark
             print(line)
     
     def move(self, dx, dy):
@@ -140,7 +129,7 @@ class RoguelikeWithWalls:
         while True:
             self.draw()
             
-            key = msvcrt.getch().decode('latin-1').lower()  # ИСПРАВЛЕНО: кодировка
+            key = msvcrt.getch().decode('latin-1').lower()
             
             if key == 'q':
                 print("Thanks for playing!")
