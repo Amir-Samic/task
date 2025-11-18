@@ -1,152 +1,180 @@
 import os
 import random
 import math
-import msvcrt
+import time
 
-class RoguelikeWithWalls:
-    def __init__(self, width=40, height=20):
-        self.width = width
-        self.height = height
-        self.player_x = 5
-        self.player_y = 10
-        self.torch_radius = 5
+class Roguelike:
+    def __init__(self):
+        self.WIDTH = 40
+        self.HEIGHT = 20
+        self.FOV_RADIUS = 5
         
-        self.wall = '#'
-        self.floor = '.'
-        self.player = '@'
-        self.dark = ' '
-        self.explored = set()
+        self.EMPTY = ' '
+        self.WALL = '#'
+        self.FLOOR = '.'
+        self.PLAYER = '@'
         
+        self.map = []
+        self.visible = []
+        self.explored = []
+        self.playerX = 1
+        self.playerY = 1
+        self.gameRunning = True
+        
+        self.initialize_arrays()
         self.generate_map()
+        self.update_fov()
+    
+    def initialize_arrays(self):
+        self.map = [[self.EMPTY for _ in range(self.WIDTH)] for _ in range(self.HEIGHT)]
+        self.visible = [[False for _ in range(self.WIDTH)] for _ in range(self.HEIGHT)]
+        self.explored = [[False for _ in range(self.WIDTH)] for _ in range(self.HEIGHT)]
+    
+    def cast_ray(self, x1, y1, x2, y2):
+        dx = abs(x2 - x1)
+        dy = abs(y2 - y1)
+        sx = 1 if x1 < x2 else -1
+        sy = 1 if y1 < y2 else -1
+        err = dx - dy
+        
+        x, y = x1, y1
+        
+        while True:
+            if 0 <= x < self.WIDTH and 0 <= y < self.HEIGHT:
+                self.visible[y][x] = True
+                self.explored[y][x] = True
+                
+                if self.map[y][x] == self.WALL:
+                    break
+            
+            if x == x2 and y == y2:
+                break
+            
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x += sx
+            if e2 < dx:
+                err += dx
+                y += sy
+    
+    def update_fov(self):
+        for y in range(self.HEIGHT):
+            for x in range(self.WIDTH):
+                self.visible[y][x] = False
+        
+        self.visible[self.playerY][self.playerX] = True
+        self.explored[self.playerY][self.playerX] = True
+        
+        for angle in range(0, 360, 5):
+            rad = angle * math.pi / 180.0
+            endX = self.playerX + int(self.FOV_RADIUS * math.cos(rad))
+            endY = self.playerY + int(self.FOV_RADIUS * math.sin(rad))
+            self.cast_ray(self.playerX, self.playerY, endX, endY)
     
     def generate_map(self):
-        """Генерация более сложной карты с комнатами"""
-        self.map = [['#' for _ in range(self.width)] for _ in range(self.height)]
-        
-        rooms = []
-        for _ in range(8):
-            room_width = random.randint(4, 8)
-            room_height = random.randint(4, 6)
-            room_x = random.randint(1, self.width - room_width - 1)
-            room_y = random.randint(1, self.height - room_height - 1)
-            
-            for y in range(room_y, room_y + room_height):
-                for x in range(room_x, room_x + room_width):
-                    if 0 <= x < self.width and 0 <= y < self.height:
-                        self.map[y][x] = self.floor
-            
-            rooms.append((room_x + room_width//2, room_y + room_height//2))
-        
-        for i in range(len(rooms) - 1):
-            x1, y1 = rooms[i]
-            x2, y2 = rooms[i + 1]
-            
-            for x in range(min(x1, x2), max(x1, x2) + 1):
-                if 0 <= x < self.width and 0 <= y1 < self.height:
-                    self.map[y1][x] = self.floor
-            
-            for y in range(min(y1, y2), max(y1, y2) + 1):
-                if 0 <= x2 < self.width and 0 <= y < self.height:
-                    self.map[y][x2] = self.floor
-        
-        self.player_x, self.player_y = rooms[0]
-    
-    def has_line_of_sight(self, x1, y1, x2, y2):
-        """Проверяет, есть ли прямая видимость между двумя точками"""
-        dx = x2 - x1
-        dy = y2 - y1
-        distance = max(abs(dx), abs(dy))
-        
-        if distance == 0:
-            return True
-        
-        for i in range(distance + 1):
-            t = i / distance
-            x = int(x1 + dx * t)
-            y = int(y1 + dy * t)
-            
-            if (0 <= x < self.width and 0 <= y < self.height and 
-                self.map[y][x] == self.wall):
-                return False
-        
-        return True
-    
-    def get_visible_cells(self):
-        """Возвращает множество видимых клеток с учетом стен"""
-        visible = set()
-        
-        for y in range(max(0, self.player_y - self.torch_radius), 
-                      min(self.height, self.player_y + self.torch_radius + 1)):
-            for x in range(max(0, self.player_x - self.torch_radius), 
-                          min(self.width, self.player_x + self.torch_radius + 1)):
-
-                distance = math.sqrt((x - self.player_x)**2 + (y - self.player_y)**2)
-                if distance <= self.torch_radius:
-
-                    if self.has_line_of_sight(self.player_x, self.player_y, x, y):
-                        visible.add((x, y))
-        
-        return visible
-    
-    def draw(self):
-        os.system('cls')
-        print("=== ROGUELIKE WITH TORCH ===")
-        print("WASD - move, +/- - torch radius, Q - quit")
-        print(f"Torch radius: {self.torch_radius}")
-        print("=" * 40)
-        
-        visible_cells = self.get_visible_cells() 
-        
-        for y in range(self.height):
-            line = ""
-            for x in range(self.width):
-                if x == self.player_x and y == self.player_y:
-                    line += self.player
-                elif (x, y) in visible_cells:
-                    self.explored.add((x, y))
-                    line += self.map[y][x]
-                elif (x, y) in self.explored:
-                    if self.map[y][x] == self.wall:
-                        line += '+'
-                    else:
-                        line += '-'
+        for y in range(self.HEIGHT):
+            for x in range(self.WIDTH):
+                if x == 0 or y == 0 or x == self.WIDTH-1 or y == self.HEIGHT-1:
+                    self.map[y][x] = self.WALL
+                elif random.randint(0, 99) < 30:
+                    self.map[y][x] = self.WALL
                 else:
-                    line += self.dark
-            print(line)
-    
-    def move(self, dx, dy):
-        new_x = self.player_x + dx
-        new_y = self.player_y + dy
+                    self.map[y][x] = self.FLOOR
         
-        if (0 <= new_x < self.width and 0 <= new_y < self.height and 
-            self.map[new_y][new_x] == self.floor):
-            self.player_x, self.player_y = new_x, new_y
-            return True
+        self.map[self.playerY][self.playerX] = self.PLAYER
+        self.clear_area_around_player()
+    
+    def clear_area_around_player(self):
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                newY = self.playerY + dy
+                newX = self.playerX + dx
+                if 0 <= newY < self.HEIGHT and 0 <= newX < self.WIDTH:
+                    self.map[newY][newX] = self.FLOOR
+        self.map[self.playerY][self.playerX] = self.PLAYER
+    
+    def clear_screen(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+    
+    def render(self):
+        self.clear_screen()
+        
+        print("=== КОНСОЛЬНЫЙ РОГАЛИК С ФОНАРИКОМ ===")
+        print("Управление: WASD - движение, Q - выход")
+        print("Символы: @ - вы, # - стены")
+        
+        for y in range(self.HEIGHT):
+            for x in range(self.WIDTH):
+                if self.visible[y][x]:
+                    print(self.map[y][x], end='')
+                elif self.explored[y][x]:
+                    if self.map[y][x] == self.WALL:
+                        print('#', end='')
+                    else:
+                        print('.', end='')
+                else:
+                    print(' ', end='')
+            print()
+    
+    def is_valid_move(self, x, y):
+        return 0 <= x < self.WIDTH and 0 <= y < self.HEIGHT and self.map[y][x] != self.WALL
+    
+    def move_player(self, dx, dy):
+        newX = self.playerX + dx
+        newY = self.playerY + dy
+        
+        if self.is_valid_move(newX, newY):
+            self.map[self.playerY][self.playerX] = self.FLOOR
+            self.playerX = newX
+            self.playerY = newY
+            self.map[self.playerY][self.playerX] = self.PLAYER
+            self.update_fov()
+    
+    def getch(self):
+        if os.name == 'nt':
+            import msvcrt
+            return msvcrt.getch().decode('utf-8')
+        else:
+            import sys
+            import tty
+            import termios
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(sys.stdin.fileno())
+                ch = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            return ch
+    
+    def process_input(self):
+        try:
+            input_char = self.getch().lower()
+            
+            if input_char == 'w':
+                self.move_player(0, -1)
+            elif input_char == 's':
+                self.move_player(0, 1)
+            elif input_char == 'a':
+                self.move_player(-1, 0)
+            elif input_char == 'd':
+                self.move_player(1, 0)
+            elif input_char == 'q':
+                self.gameRunning = False
+                return True
+        except:
+            pass
         return False
     
     def run(self):
-        print("Loading game...")
-        while True:
-            self.draw()
-            
-            key = msvcrt.getch().decode('latin-1').lower()
-            
-            if key == 'q':
-                print("Thanks for playing!")
+        while self.gameRunning:
+            self.render()
+            if self.process_input():
                 break
-            elif key == 'w':
-                self.move(0, -1)
-            elif key == 's':
-                self.move(0, 1)
-            elif key == 'a':
-                self.move(-1, 0)
-            elif key == 'd':
-                self.move(1, 0)
-            elif key == '+' or key == '=':
-                self.torch_radius = min(12, self.torch_radius + 1)
-            elif key == '-' or key == '_':
-                self.torch_radius = max(3, self.torch_radius - 1)
+            time.sleep(0.05)
+        print("Спасибо за игру!")
 
 if __name__ == "__main__":
-    game = RoguelikeWithWalls()
+    game = Roguelike()
     game.run()
